@@ -2,7 +2,9 @@
 # Auteur Nathan Van Ymeren
 # https://github.com/nathanvy
 CC=g++
-CFLAGS=-c -Wall -std=c++11 -g3
+CFLAGS=-c -std=c++11
+RELEASE_FLAGS=-O3
+DEBUG_FLAGS=-Wall -g3
 
 all: fdsolve
 
@@ -20,6 +22,12 @@ quadrillage.o:
 
 readwrite.o:
 	$(CC) $(CFLAGS) readwrite.cpp
+
+release: CFLAGS += $(RELEASE_FLAGS)
+release: all
+
+debug: CFLAGS += $(DEBUG_FLAGS)
+debug: all
 
 clean:
 	rm -rf *o fdsolve
