@@ -29,3 +29,7 @@ PointGrille::PointGrille()
 PointGrille::~PointGrille()
 {
 }
+
+void PointGrille::initICs(){
+  //
+}
