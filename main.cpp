@@ -76,6 +76,9 @@ bool checkConvergence(){
 }
 
 double mac() {
+  //THIS IS THE PART WE THREW OUT IN THE PREVIOUS VERSION
+  // GET IT RIGHT THIS TIME BRO
+
   //calculate delU/delt at t,i,j from fwd differencing in space
   //predict U at time t+delta t
   //get predicted delU/delt at time t+delta t
