@@ -75,21 +75,47 @@ bool checkConvergence(){
   return false;
 }
 
-double mac() {
+double mac(PointGrille* pg, double dt, double dx, double dy, int nx, int ny) {
   //THIS IS THE PART WE THREW OUT IN THE PREVIOUS VERSION
   // GET IT RIGHT THIS TIME BRO
 
-  //calculate delU/delt at t,i,j from fwd differencing in space
-  //predict U at time t+delta t
-  //get predicted delU/delt at time t+delta t
-  //run that through eqn 10.6 to get corrected, 2nd-order-accurate values
+  //GET READY FOR SOME LOOPS BABY!!!
+
+  //predict values of U at time t+deltat:
+  for(int i=0;i<nx;i++){
+    for(int j=0;i<ny;j++){
+      pg[i*ny+j].U.cont = pg[i*ny+j].U.cont -
+	(dt/dx)*( pg[(i+1)*ny+j].E.cont - pg[i*ny+j].E.cont ) -
+	(dt/dy)*( pg[i*ny+(j+1)].F.cont - pg[i*ny+j].F.cont );
+      pg[i*ny+j].U.elanX = pg[i*ny+j].U.elanX -
+	(dt/dx)*( pg[(i+1)*ny+j].E.elanX - pg[i*ny+j].E.elanX ) -
+	(dt/dy)*( pg[i*ny+(j+1)].F.elanX - pg[i*ny+j].F.elanX );
+      pg[i*ny+j].U.elanY = pg[i*ny+j].U.elanY -
+	(dt/dx)*( pg[(i+1)*ny+j].E.elanY - pg[i*ny+j].E.elanY ) -
+	(dt/dy)*( pg[i*ny+(j+1)].F.elanY - pg[i*ny+j].F.elanY );
+      pg[i*ny+j].U.nrg = pg[i*ny+j].U.nrg -
+	(dt/dx)*( pg[(i+1)*ny+j].E.nrg - pg[i*ny+j].E.nrg ) -
+	(dt/dy)*( pg[i*ny+(j+1)].F.nrg - pg[i*ny+j].F.nrg );
+      
+      decode(pg, i, j); //close the system with new predicted values
+    }
+  }
+  //entire flow should now be in predicted state at time t+deltaT
+
+  //now, correct the flow field using opposite diferencing
+  for(int i=0;i<nx;i++){
+    for(int j=0;i<ny;j++){
+      pg[i*ny+j].U.cont = 0; //yeah shit, we're gonna need a 2nd fucking gridmesh
+    }
+  }
+
   //repeat until residuals drop below desired threshhold
 
   //after each predictor corrector, call decode(U);
   return 0;
 }
 
-void decode(PointGrille* pg) {
+void decode(PointGrille* pg, int i, int j) {
   //e.g. rho = U1
   // u = rho u / rho = U2/U1
   // cv = r/gamma-1
@@ -155,7 +181,7 @@ int main(int argc, char* argv[])
     }
     //calculate time step deltaT
     deltaT = timeStep(p_mesh, deltaX, deltaY, (int)nx, (int)ny);
-    mac();
+    mac(p_mesh, deltaT, deltaX, deltaY, (int)nx, (int)ny);
     
     if( checkConvergence() ) {
       break;
