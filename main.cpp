@@ -106,7 +106,8 @@ void decode(PointGrille* pg) {
   pg[i*ny+j].k = pg[i*ny+j].mu * (Gamma* R/(Gamma - 1) ) / Pr;
 }
 
-void checkContinuity() {
+bool checkContinuity() {
+  return true;
 }
 
 int main(int argc, char* argv[])
@@ -159,7 +160,8 @@ int main(int argc, char* argv[])
 
   }
 
-  checkContinuity();
+  if (checkContinuity() ) {
+  }
   
   //write data to gnuplot somewhere here  
 
