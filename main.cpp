@@ -49,7 +49,7 @@ double timeStep(PointGrille* pg, double dx, double dy, int nx, int ny) {
       vprime = (4/3)*mu*(Gamma*mu/Pr)/pg[i*ny+j].U.cont;
       
       if ( vprime > vPrimeMax ) {
-	vPrimeMax = vprime;
+        vPrimeMax = vprime;
       }
     }
   }
@@ -57,13 +57,13 @@ double timeStep(PointGrille* pg, double dx, double dy, int nx, int ny) {
   for(int i=0;i<nx;i++){
     for(int j=0;j<ny;j++){
       cfl = 1/( (abs(u)/dx) + 
-		(abs(v)/dy) + 
-		a*sqrt( pow(dx,-2)+ pow(dy,-2) ) +
-		2*vPrimeMax*( pow(dx,-2)+ pow(dy,-2) )
-		); //yuck
+                (abs(v)/dy) + 
+                a*sqrt( pow(dx,-2)+ pow(dy,-2) ) +
+                2*vPrimeMax*( pow(dx,-2)+ pow(dy,-2) )
+                ); //yuck
       
       if( (cfl < cflmin) || (cflmin == 0) ) {
-	cflmin = cfl;
+        cflmin = cfl;
       }
     }
   }
@@ -86,13 +86,26 @@ double mac() {
   return 0;
 }
 
-double decode() {
+void decode(PointGrille* pg) {
   //e.g. rho = U1
   // u = rho u / rho = U2/U1
+  // cv = r/gamma-1
+  // cp = gamma*cv
   // ...
   // gives rho, u, v, and e
   // lets us determine remaining unknowns T, p, mu, k
+  double u, v, e;
+  u = pg[i*ny+j].U.elanX / pg[i*ny+j].U.cont;
+  v = pg[i*ny+j].U.elanY / pg[i*ny+j].U.cont;
+  e = (pg[i*ny+j].U.nrg / pg[i*ny+j].U.cont) - 0.5*(pow(u,2)+pow(v,2));
+
+  //set the actual flow variables to close the system
+  pg[i*ny+j].T = e / (R/(Gamma - 1)); // T=e/Cv
+  pg[i*ny+j].p = pg[i*ny+j].U.cont * R * pg[i*ny+j].T; //p = rho R T
+  pg[i*ny+j].mu = mu0 * pow(pg[i*ny+j].T / temp0, 1.5) * (temp0+110) / (pg[i*ny+j].T + 110); //Sutherland's
+  pg[i*ny+j].k = pg[i*ny+j].mu * (Gamma* R/(Gamma - 1) ) / Pr;
 }
+
 void checkContinuity() {
 }
 
