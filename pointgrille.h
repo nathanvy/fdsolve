@@ -22,11 +22,17 @@ class TermVec
 class PointGrille
 {
  public:
-  TermVec U;
-  TermVec E;
-  TermVec F;
-  TermVec G;
-  TermVec J;
+  // les 5 vecteurs
+  TermVec U; //solution
+  TermVec E; //delx
+  TermVec F; //dely
+  TermVec G; //delz
+  TermVec J; //constraints
+
+  double p;
+  double T;
+  double k;
+  double mu;
 
   PointGrille();
   ~PointGrille();
