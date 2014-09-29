@@ -3,6 +3,10 @@
 //Navier-Stokes solver
 //GPLv3
 
+/*
+  This program currently only solves the case of supersonic flow over a flate plate using the MacCormack Technique, a problem for which the author believes a time-marching technique is well-posed.  Future versions may or may not solve different geometries without needing to be recompiled.  The value to the author is the chance to get down and dirty with CFD, not to worry about the vagarities of parsing a shitload of input data
+*/
+
 #include <fstream>
 #include <iostream>
 #include <exception>
@@ -17,13 +21,13 @@
 const double machInf = 4.0;
 const int nx = 70;
 const int ny = 70;
-const double length = 0.00001;
+const double length = 0.00001; //length of the plate
 const double Gamma = 1.4;
 const double aInf = 340.28;
 const double pInf = 101325.0;
 const double tempInf = 288.16;
 const double temp0 = 288.16;
-const double Pr = 0.71;
+const double Pr = 0.71; //Prandtl
 const double R = 287;
 const double tempRatio = 1.0;
 const double mu0 = 1.7894 * pow((double)10, (double)-5);
@@ -121,7 +125,7 @@ bool checkContinuity() {
 void mac(PointGrille* pg, PointGrille* scratch, double dt, double dx, double dy, int nx, int ny) {
   for(int i=0;i<nx;i++){
     for(int j=0;i<ny;j++){
-      //we know U at the current time step.
+      //assume we know U at the current time step.
       decode(pg, i, j);
       //store current solution vector in scratch[] for use later
       scratch[i*ny+j].U.cont = pg[i*ny+j].U.cont;
@@ -174,6 +178,8 @@ void mac(PointGrille* pg, PointGrille* scratch, double dt, double dx, double dy,
       pg[i*ny+j].F.elanX = ( pg[i*ny+j].U.elanX*pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont ) - tauxy(pg, i, j); //rho u v - tauxy
       pg[i*ny+j].F.elanY = pow(pg[i*ny+j].U.elanY, 2) + pg[i*ny+j].p - tauxx(pg, i , j); //rho v^2 +p - tauxx
       pg[i*ny+j].F.nrg = ( (pg[i*ny+j].U.nrg + pg[i*ny+j].p)*(pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont) ) - ( (pg[i*ny+j].U.elanX/pg[i*ny+j].U.cont)*tauxy(pg, i, j) ) - ( (pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont)*tauyy(pg, i, j)) + qy(pg, i , j); //(Et+p)v - u tauxy - v tauyy + qy
+
+      applyBCs(pg);
     }
   }
   //entire flow should now be in predicted state at time t+deltaT
@@ -229,9 +235,11 @@ int main(int argc, char* argv[])
   //Mesh* p_contMesh = new Mesh();
   //ReaderWriter* p_rw = new ReaderWriter(cont, p_contMesh);
  
+  std::cout << "Preliminary setup... ";
+
   int iterations;
   const int maxiterations = 10000;
-  
+
   double Cv = R / (Gamma - 1);
   double Cp = Gamma * Cv;
   double rhoInf = pInf / ( R*tempInf);
@@ -249,6 +257,8 @@ int main(int argc, char* argv[])
   PointGrille* p_mesh = new PointGrille[nx*ny];
   PointGrille* p_scratch = new PointGrille[nx*ny]; //we've got shit tons of memory bro
   
+  std::cout << " done." << std::endl;
+  std::cout << "Beginning a series of max " << maxiterations << " iterations ..." << std:: endl;
   // start iterating
   for(iterations = 0; iterations >= maxiterations; iterations++) {
     if(iterations == 0){
@@ -259,6 +269,7 @@ int main(int argc, char* argv[])
     mac(p_mesh, p_scratch, deltaT, deltaX, deltaY, nx, ny);
     
     if( checkConvergence() ) {
+      std::cout << "Solution converged after " << iterations << " iterations!" << std::endl;
       break;
     }
 
