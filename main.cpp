@@ -118,12 +118,18 @@ bool checkContinuity() {
   return true;
 }
 
-double mac(PointGrille* pg, double dt, double dx, double dy, int nx, int ny) {
+double mac(PointGrille* pg, PointGrille* scratch, double dt, double dx, double dy, int nx, int ny) {
   //THIS IS THE PART WE THREW OUT IN THE PREVIOUS VERSION
   for(int i=0;i<nx;i++){
     for(int j=0;i<ny;j++){
       //we know U at the current time step.
       decode(pg, i, j);
+      //store current solution vector in scratch[] for use later
+      scratch[i*ny+j].U.cont = pg[i*ny+j].U.cont;
+      scratch[i*ny+j].U.elanX = pg[i*ny+j].U.elanX;
+      scratch[i*ny+j].U.elanY = pg[i*ny+j].U.elanY;
+      scratch[i*ny+j].U.nrg = pg[i*ny+j].U.nrg;
+      
       // get E and F vectors since we need those for predicting
       pg[i*ny+j].E.cont = pg[i*ny+j].U.elanX; //rho u
       pg[i*ny+j].E.elanX = pow(pg[i*ny+j].U.elanX, 2) + pg[i*ny+j].p - tauxx(pg, i , j); //rho u^2 +p - tauxx
@@ -229,7 +235,7 @@ int main(int argc, char* argv[])
     }
     //calculate time step deltaT
     deltaT = timeStep(p_mesh, deltaX, deltaY, (int)nx, (int)ny);
-    mac(p_mesh, deltaT, deltaX, deltaY, (int)nx, (int)ny);
+    mac(p_mesh, p_scratch, deltaT, deltaX, deltaY, (int)nx, (int)ny);
     
     if( checkConvergence() ) {
       break;
