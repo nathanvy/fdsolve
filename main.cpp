@@ -74,6 +74,9 @@ bool checkConvergence(){
   return false;
 }
 
+void applyBCs(PointGrille* pg){
+}
+
 void decode(PointGrille* pg, int i, int j) {
   //e.g. rho = U1
   // u = rho u / rho = U2/U1
@@ -152,7 +155,11 @@ double mac(PointGrille* pg, double dt, double dx, double dy, int nx, int ny) {
 	(dt/dy)*( pg[i*ny+(j+1)].F.nrg - pg[i*ny+j].F.nrg );
       
       decode(pg, i, j); //close the system with new predicted values
+      
+      //apply boundary conditions
+      applyBCs(pg);
 
+      //now calculate new E and F vectors with predicted values
       pg[i*ny+j].E.cont = pg[i*ny+j].U.elanX; //rho u
       pg[i*ny+j].E.elanX = pow(pg[i*ny+j].U.elanX, 2) + pg[i*ny+j].p - tauxx(pg, i , j); //rho u^2 +p - tauxx
       pg[i*ny+j].E.elanY = ( pg[i*ny+j].U.elanX*pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont ) - tauxy(pg, i, j); //rho u v - tauxy
@@ -166,10 +173,10 @@ double mac(PointGrille* pg, double dt, double dx, double dy, int nx, int ny) {
   }
   //entire flow should now be in predicted state at time t+deltaT
 
-  //now, correct the flow field using opposite (rearward) diferencing
+  //correct the flow field using opposite (rearward) diferencing
   for(int i=0;i<nx;i++){
     for(int j=0;i<ny;j++){
-      pg[i*ny+j].U.cont = 0; 
+      pg[i*ny+j].U.cont = 
     }
   }
 
@@ -212,7 +219,8 @@ int main(int argc, char* argv[])
 
   // mesh[i][j] is now mesh[i*ny + j]
   // e.g. p_mesh[i*ny+j].U.cont = 0;
-  PointGrille* p_mesh = new PointGrille[(int)(nx*ny)];
+  PointGrille* p_mesh = new PointGrille[nx*ny];
+  PointGrille* p_scratch = new PointGrille[nx*ny];
   
   // start iterating
   for(iterations = 0; iterations >= maxiterations; iterations++) {
