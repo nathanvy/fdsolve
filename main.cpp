@@ -118,8 +118,7 @@ bool checkContinuity() {
   return true;
 }
 
-double mac(PointGrille* pg, PointGrille* scratch, double dt, double dx, double dy, int nx, int ny) {
-  //THIS IS THE PART WE THREW OUT IN THE PREVIOUS VERSION
+void mac(PointGrille* pg, PointGrille* scratch, double dt, double dx, double dy, int nx, int ny) {
   for(int i=0;i<nx;i++){
     for(int j=0;i<ny;j++){
       //we know U at the current time step.
@@ -180,16 +179,38 @@ double mac(PointGrille* pg, PointGrille* scratch, double dt, double dx, double d
   //entire flow should now be in predicted state at time t+deltaT
 
   //correct the flow field using opposite (rearward) diferencing
+  // note that pg now holds the predicted values at time t+dt aka the "next" flow field and scratch holds the current flow field
   for(int i=0;i<nx;i++){
     for(int j=0;i<ny;j++){
-      pg[i*ny+j].U.cont = 
+      pg[i*ny+j].U.cont = 0.5*( scratch[i*ny+j].U.cont +
+				pg[i*ny+j].U.cont -
+				(dt/dx)*(pg[i*ny+j].E.cont - pg[(i-1)*ny+j].E.cont) -
+				(dt/dy)*(pg[i*ny+j].F.cont - pg[i*ny+j-1].F.cont)
+				);
+      pg[i*ny+j].U.elanX = 0.5*( scratch[i*ny+j].U.elanX +
+				pg[i*ny+j].U.elanX -
+				(dt/dx)*(pg[i*ny+j].E.elanX - pg[(i-1)*ny+j].E.elanX) -
+				(dt/dy)*(pg[i*ny+j].F.elanX - pg[i*ny+j-1].F.elanX)
+				);
+      pg[i*ny+j].U.elanY = 0.5*( scratch[i*ny+j].U.elanY +
+				pg[i*ny+j].U.elanY -
+				(dt/dx)*(pg[i*ny+j].E.elanY - pg[(i-1)*ny+j].E.elanY) -
+				(dt/dy)*(pg[i*ny+j].F.elanY - pg[i*ny+j-1].F.elanY)
+				);
+      pg[i*ny+j].U.nrg = 0.5*( scratch[i*ny+j].U.nrg +
+				pg[i*ny+j].U.nrg -
+				(dt/dx)*(pg[i*ny+j].E.nrg - pg[(i-1)*ny+j].E.nrg) -
+				(dt/dy)*(pg[i*ny+j].F.nrg - pg[i*ny+j-1].F.nrg)
+				);
+
+      decode(pg, i, j);
+      
+      //we _should_ be at a predicted-corrected t+dt flow field now
+
     }
   }
 
   //repeat until residuals drop below desired threshhold
-
-  //after each predictor corrector, call decode(U);
-  return 0;
 }
 
 int main(int argc, char* argv[])
@@ -226,7 +247,7 @@ int main(int argc, char* argv[])
   // mesh[i][j] is now mesh[i*ny + j]
   // e.g. p_mesh[i*ny+j].U.cont = 0;
   PointGrille* p_mesh = new PointGrille[nx*ny];
-  PointGrille* p_scratch = new PointGrille[nx*ny];
+  PointGrille* p_scratch = new PointGrille[nx*ny]; //we've got shit tons of memory bro
   
   // start iterating
   for(iterations = 0; iterations >= maxiterations; iterations++) {
@@ -234,8 +255,8 @@ int main(int argc, char* argv[])
       p_mesh->initICs();
     }
     //calculate time step deltaT
-    deltaT = timeStep(p_mesh, deltaX, deltaY, (int)nx, (int)ny);
-    mac(p_mesh, p_scratch, deltaT, deltaX, deltaY, (int)nx, (int)ny);
+    deltaT = timeStep(p_mesh, deltaX, deltaY, nx, ny);
+    mac(p_mesh, p_scratch, deltaT, deltaX, deltaY, nx, ny);
     
     if( checkConvergence() ) {
       break;
