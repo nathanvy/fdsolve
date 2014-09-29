@@ -14,10 +14,9 @@
 #include "readwrite.h"
 
 //grid stuff, to-do:  move this to ini file
-// also make them global, fuck
 const double machInf = 4.0;
-const double nx = 70;
-const double ny = 70;
+const int nx = 70;
+const int ny = 70;
 const double length = 0.00001;
 const double Gamma = 1.4;
 const double aInf = 340.28;
@@ -75,46 +74,6 @@ bool checkConvergence(){
   return false;
 }
 
-double mac(PointGrille* pg, double dt, double dx, double dy, int nx, int ny) {
-  //THIS IS THE PART WE THREW OUT IN THE PREVIOUS VERSION
-  // GET IT RIGHT THIS TIME BRO
-
-  //GET READY FOR SOME LOOPS BABY!!!
-
-  //predict values of U at time t+deltat:
-  for(int i=0;i<nx;i++){
-    for(int j=0;i<ny;j++){
-      pg[i*ny+j].U.cont = pg[i*ny+j].U.cont -
-	(dt/dx)*( pg[(i+1)*ny+j].E.cont - pg[i*ny+j].E.cont ) -
-	(dt/dy)*( pg[i*ny+(j+1)].F.cont - pg[i*ny+j].F.cont );
-      pg[i*ny+j].U.elanX = pg[i*ny+j].U.elanX -
-	(dt/dx)*( pg[(i+1)*ny+j].E.elanX - pg[i*ny+j].E.elanX ) -
-	(dt/dy)*( pg[i*ny+(j+1)].F.elanX - pg[i*ny+j].F.elanX );
-      pg[i*ny+j].U.elanY = pg[i*ny+j].U.elanY -
-	(dt/dx)*( pg[(i+1)*ny+j].E.elanY - pg[i*ny+j].E.elanY ) -
-	(dt/dy)*( pg[i*ny+(j+1)].F.elanY - pg[i*ny+j].F.elanY );
-      pg[i*ny+j].U.nrg = pg[i*ny+j].U.nrg -
-	(dt/dx)*( pg[(i+1)*ny+j].E.nrg - pg[i*ny+j].E.nrg ) -
-	(dt/dy)*( pg[i*ny+(j+1)].F.nrg - pg[i*ny+j].F.nrg );
-      
-      decode(pg, i, j); //close the system with new predicted values
-    }
-  }
-  //entire flow should now be in predicted state at time t+deltaT
-
-  //now, correct the flow field using opposite diferencing
-  for(int i=0;i<nx;i++){
-    for(int j=0;i<ny;j++){
-      pg[i*ny+j].U.cont = 0; //yeah shit, we're gonna need a 2nd fucking gridmesh
-    }
-  }
-
-  //repeat until residuals drop below desired threshhold
-
-  //after each predictor corrector, call decode(U);
-  return 0;
-}
-
 void decode(PointGrille* pg, int i, int j) {
   //e.g. rho = U1
   // u = rho u / rho = U2/U1
@@ -135,8 +94,89 @@ void decode(PointGrille* pg, int i, int j) {
   pg[i*ny+j].k = pg[i*ny+j].mu * (Gamma* R/(Gamma - 1) ) / Pr;
 }
 
+double tauxx(PointGrille* pg, int i, int j){
+  return 0;
+}
+double tauxy(PointGrille* pg, int i, int j){
+  return 0;
+}
+double tauyy(PointGrille* pg, int i, int j){
+  return 0;
+}
+
+double qx(PointGrille* pg, int i, int j){
+  return 0;
+}
+double qy(PointGrille* pg, int i, int j){
+  return 0;
+}
+
 bool checkContinuity() {
   return true;
+}
+
+double mac(PointGrille* pg, double dt, double dx, double dy, int nx, int ny) {
+  //THIS IS THE PART WE THREW OUT IN THE PREVIOUS VERSION
+  for(int i=0;i<nx;i++){
+    for(int j=0;i<ny;j++){
+      //we know U at the current time step.
+      decode(pg, i, j);
+      // get E and F vectors since we need those for predicting
+      pg[i*ny+j].E.cont = pg[i*ny+j].U.elanX; //rho u
+      pg[i*ny+j].E.elanX = pow(pg[i*ny+j].U.elanX, 2) + pg[i*ny+j].p - tauxx(pg, i , j); //rho u^2 +p - tauxx
+      pg[i*ny+j].E.elanY = ( pg[i*ny+j].U.elanX*pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont ) - tauxy(pg, i, j); //rho u v - tauxy
+      pg[i*ny+j].E.nrg = ( (pg[i*ny+j].U.nrg + pg[i*ny+j].p)*pg[i*ny+j].U.elanX/pg[i*ny+j].U.cont ) - ( (pg[i*ny+j].U.elanX/pg[i*ny+j].U.cont)*tauxx(pg, i, j) ) - ( (pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont)*tauxy(pg, i, j) ) + qx(pg, i , j); //(Et+p)u - u tauxx - v tauxy + qx
+      
+      pg[i*ny+j].F.cont = pg[i*ny+j].U.elanY; //rho v
+      pg[i*ny+j].F.elanX = ( pg[i*ny+j].U.elanX*pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont ) - tauxy(pg, i, j); //rho u v - tauxy
+      pg[i*ny+j].F.elanY = pow(pg[i*ny+j].U.elanY, 2) + pg[i*ny+j].p - tauxx(pg, i , j); //rho v^2 +p - tauxx
+      pg[i*ny+j].F.nrg = ( (pg[i*ny+j].U.nrg + pg[i*ny+j].p)*(pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont) ) - ( (pg[i*ny+j].U.elanX/pg[i*ny+j].U.cont)*tauxy(pg, i, j) ) - ( (pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont)*tauyy(pg, i, j)) + qy(pg, i , j); //(Et+p)v - u tauxy - v tauyy + qy      
+    }
+  }
+  
+  //now, for interior points only
+  //predict values of U at time t+delta:t
+  for(int i=1;i<nx-1;i++){
+    for(int j=1;j<nx-1;j++){
+      pg[i*ny+j].U.cont = pg[i*ny+j].U.cont -
+	(dt/dx)*( pg[(i+1)*ny+j].E.cont - pg[i*ny+j].E.cont ) -
+	(dt/dy)*( pg[i*ny+(j+1)].F.cont - pg[i*ny+j].F.cont );
+      pg[i*ny+j].U.elanX = pg[i*ny+j].U.elanX -
+	(dt/dx)*( pg[(i+1)*ny+j].E.elanX - pg[i*ny+j].E.elanX ) -
+	(dt/dy)*( pg[i*ny+(j+1)].F.elanX - pg[i*ny+j].F.elanX );
+      pg[i*ny+j].U.elanY = pg[i*ny+j].U.elanY -
+	(dt/dx)*( pg[(i+1)*ny+j].E.elanY - pg[i*ny+j].E.elanY ) -
+	(dt/dy)*( pg[i*ny+(j+1)].F.elanY - pg[i*ny+j].F.elanY );
+      pg[i*ny+j].U.nrg = pg[i*ny+j].U.nrg -
+	(dt/dx)*( pg[(i+1)*ny+j].E.nrg - pg[i*ny+j].E.nrg ) -
+	(dt/dy)*( pg[i*ny+(j+1)].F.nrg - pg[i*ny+j].F.nrg );
+      
+      decode(pg, i, j); //close the system with new predicted values
+
+      pg[i*ny+j].E.cont = pg[i*ny+j].U.elanX; //rho u
+      pg[i*ny+j].E.elanX = pow(pg[i*ny+j].U.elanX, 2) + pg[i*ny+j].p - tauxx(pg, i , j); //rho u^2 +p - tauxx
+      pg[i*ny+j].E.elanY = ( pg[i*ny+j].U.elanX*pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont ) - tauxy(pg, i, j); //rho u v - tauxy
+      pg[i*ny+j].E.nrg = ( (pg[i*ny+j].U.nrg + pg[i*ny+j].p)*pg[i*ny+j].U.elanX/pg[i*ny+j].U.cont ) - ( (pg[i*ny+j].U.elanX/pg[i*ny+j].U.cont)*tauxx(pg, i, j) ) - ( (pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont)*tauxy(pg, i, j) ) + qx(pg, i , j); //(Et+p)u - u tauxx - v tauxy + qx
+      
+      pg[i*ny+j].F.cont = pg[i*ny+j].U.elanY; //rho v
+      pg[i*ny+j].F.elanX = ( pg[i*ny+j].U.elanX*pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont ) - tauxy(pg, i, j); //rho u v - tauxy
+      pg[i*ny+j].F.elanY = pow(pg[i*ny+j].U.elanY, 2) + pg[i*ny+j].p - tauxx(pg, i , j); //rho v^2 +p - tauxx
+      pg[i*ny+j].F.nrg = ( (pg[i*ny+j].U.nrg + pg[i*ny+j].p)*(pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont) ) - ( (pg[i*ny+j].U.elanX/pg[i*ny+j].U.cont)*tauxy(pg, i, j) ) - ( (pg[i*ny+j].U.elanY/pg[i*ny+j].U.cont)*tauyy(pg, i, j)) + qy(pg, i , j); //(Et+p)v - u tauxy - v tauyy + qy
+    }
+  }
+  //entire flow should now be in predicted state at time t+deltaT
+
+  //now, correct the flow field using opposite (rearward) diferencing
+  for(int i=0;i<nx;i++){
+    for(int j=0;i<ny;j++){
+      pg[i*ny+j].U.cont = 0; 
+    }
+  }
+
+  //repeat until residuals drop below desired threshhold
+
+  //after each predictor corrector, call decode(U);
+  return 0;
 }
 
 int main(int argc, char* argv[])
